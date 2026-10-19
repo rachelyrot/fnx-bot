@@ -18,7 +18,7 @@ if os.getenv("NETFREE_UNSTRICT_SSL", "1") != "0":
 
 
 def require_env(name: str) -> str:
-    value = os.getenv(name)
+    value = (os.getenv(name) or "").strip()  # a pasted key often carries a trailing newline
     if not value:
         raise RuntimeError(f"Missing {name} — copy .env.example to .env and fill it in")
     return value
