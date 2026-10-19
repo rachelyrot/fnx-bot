@@ -1,0 +1,14 @@
+# Render's free plan sleeps after 15 idle minutes; a ping every 10 minutes keeps the bot warm.
+# GitHub may run scheduled jobs a few minutes late, so on judging days add an external pinger too.
+name: keep-awake
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - run: curl --fail --silent --show-error --max-time 120 --retry 2 https://fnx-bot.onrender.com/api/health

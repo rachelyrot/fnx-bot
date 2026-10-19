@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "שאלו את האתר — הבוט של הפניקס",
+  "description": "צ'אט שעונה מתוך אתר הפניקס ומראה בעמוד עצמו את המשפט שעליו התשובה מבוססת.",
+  "version": "0.1.0",
+  "background": { "service_worker": "background.js" },
+  "host_permissions": ["https://fnx-bot.onrender.com/*", "http://127.0.0.1:8000/*"],
+  "content_scripts": [
+    {
+      "matches": ["https://www.fnx.co.il/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    { "resources": ["widget.css", "fnx-logo.png"], "matches": ["https://www.fnx.co.il/*"] }
+  ]
+}

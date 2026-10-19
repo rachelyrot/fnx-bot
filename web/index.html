@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>שאלו את האתר | הבוט של הפניקס</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="https://www.fnx.co.il/" target="_blank" rel="noopener">
+        <img src="/static/img/fnx-logo.png" alt="הפניקס" width="119" height="42">
+        <span class="brand-sep" aria-hidden="true"></span>
+        <span class="brand-sub">שאלו את האתר</span>
+      </a>
+      <a class="topbar-link" href="https://www.fnx.co.il/customer-service/contact-us/" target="_blank" rel="noopener">כל הדרכים ליצור קשר</a>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="hero-inner">
+      <h1>איך נוכל לעזור לך?</h1>
+      <p>תשובות מתוך המידע שבאתר הפניקס, עם קישור לעמוד המקור.</p>
+    </div>
+  </section>
+
+  <main class="chat-wrap">
+    <div class="chat-card">
+      <div id="messages" class="messages" aria-live="polite">
+        <div class="msg bot welcome">
+          <div class="bubble">
+            שלום! אני עונה על שאלות לפי מה שכתוב באתר הפניקס — ביטוחים, תביעות, חיסכון ופנסיה ושירות.
+            אני לא נותן ייעוץ אישי ולא רואה את הפוליסה שלך.
+          </div>
+        </div>
+      </div>
+
+      <div id="suggestions" class="suggestions">
+        <button type="button" class="card" data-q="יש לי נזילה בבית, איך אני מגישה תביעה?">
+          <img src="/static/img/info.png" alt=""><span>יש לי נזילה בבית, איך מגישים תביעה?</span>
+        </button>
+        <button type="button" class="card" data-q="המזוודה שלי לא הגיעה בטיסה, מה עושים?">
+          <img src="/static/img/travel.png" alt=""><span>המזוודה לא הגיעה בטיסה, מה עושים?</span>
+        </button>
+        <button type="button" class="card" data-q="מה כולל ביטוח תכולה?">
+          <img src="/static/img/policy.png" alt=""><span>מה כולל ביטוח תכולה?</span>
+        </button>
+        <button type="button" class="card" data-q="איך מבטלים ביטוח דירה?">
+          <img src="/static/img/actions.png" alt=""><span>איך מבטלים ביטוח דירה?</span>
+        </button>
+      </div>
+
+      <form id="composer" class="composer" autocomplete="off">
+        <button id="new-chat" class="new-chat" type="button" title="שיחה חדשה" aria-label="שיחה חדשה">
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+        </button>
+        <input id="input" type="text" placeholder="הקלידו שאלה..." maxlength="1000" aria-label="שאלה">
+        <button id="send" type="submit" aria-label="שליחה">
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </form>
+    </div>
+    <p class="disclaimer">המידע כללי ומבוסס על אתר הפניקס בלבד. לבדיקת הפוליסה האישית: שירות לקוחות &lrm;*5070 או האזור האישי.</p>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

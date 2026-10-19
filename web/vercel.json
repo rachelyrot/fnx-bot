@@ -1,0 +1,6 @@
+{
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "https://fnx-bot.onrender.com/api/:path*" },
+    { "source": "/static/:path*", "destination": "/:path*" }
+  ]
+}

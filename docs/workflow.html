@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FNX Bot Workflow</title>
+<style>
+  :root { --bg:#fbfaf7; --fg:#1f1d1a; --muted:#6b665e; --card:#ffffff; --line:#e4e0d8; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --bg:#16161a; --fg:#ecebe8; --muted:#a19d95; --card:#1f1f24; --line:#33333a; }
+  }
+  :root[data-theme="dark"] { --bg:#16161a; --fg:#ecebe8; --muted:#a19d95; --card:#1f1f24; --line:#33333a; }
+  body { margin:0; background:var(--bg); color:var(--fg); font-family:"Segoe UI", Arial, sans-serif; line-height:1.6; }
+  main { max-width:1100px; margin:0 auto; padding:32px 16px 64px; }
+  h1 { font-size:1.6rem; margin:0 0 4px; }
+  p.sub { color:var(--muted); margin:0 0 24px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; overflow-x:auto; }
+  .mermaid { direction:ltr; min-width:720px; }
+  table { border-collapse:collapse; width:100%; margin-top:24px; font-size:.95rem; }
+  th, td { border-bottom:1px solid var(--line); padding:8px; text-align:right; vertical-align:top; }
+  th { color:var(--muted); font-weight:600; }
+  code { background:var(--line); padding:1px 5px; border-radius:4px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>הבוט של אתר הפניקס — Workflow</h1>
+  <p class="sub">LlamaIndex Workflow מונחה-אירועים: אימות → הבנת השאלה → גבולות → ניתוב → חיפוש סמנטי / שליפה מובנית → אימות ציטוט</p>
+
+  <div class="card">
+<pre class="mermaid">
+flowchart TD
+  S([StartEvent: question + history]) --> V[validate_input]
+  V -- empty / too long --> X1([Stop: ask again])
+  V -- CondenseEvent --> C[condense<br/>Haiku, only if history]
+  C -- ClassifyEvent --> U{{"understand — in parallel:<br/>classify (Haiku) · route (LLMSingleSelector)<br/>· retrieve (Pinecone top-25 + Cohere rerank)"}}
+  U -- advice --> X2([Stop: no personal advice + referral])
+  U -- off_topic --> X3([Stop: only fnx.co.il topics])
+  U -- StructuredEvent --> ST[structured_lookup<br/>LLM builds query on structured.json]
+  ST -- "nothing found:<br/>prefetched evidence" --> EV
+  ST -- VerifyEvent --> VF
+  U -- EvaluateEvent --> EV{evaluate}
+  RE[retrieve<br/>Pinecone + rerank] -- EvaluateEvent --> EV
+  EV -- "no evidence,<br/>attempts &lt; 2" --> RW[rewrite<br/>Haiku: site terminology]
+  RW -- RetrieveEvent --> RE
+  EV -- "no evidence,<br/>attempts = 2" --> X4([Stop: not on the site<br/>no answer-LLM call])
+  EV -- SynthesizeEvent --> SY[synthesize<br/>Claude Sonnet, strict prompt<br/>streams TokenEvent to the UI]
+  SY -- VerifyEvent --> VF[verify<br/>cited URLs ⊆ evidence URLs]
+  VF --> OUT([Stop: answer + source URL<br/>+ referral if personal policy])
+</pre>
+  </div>
+
+  <table>
+    <tr><th>Step</th><th>LLM?</th><th>מה הוא עושה</th></tr>
+    <tr><td><code>validate_input</code></td><td>לא</td><td>קלט ריק/ארוך מדי. שומר ב-State את השאלה ומאפס attempts.</td></tr>
+    <tr><td><code>condense</code></td><td>Haiku, רק בשאלת המשך</td><td>"ותוך כמה זמן?" → שאלה עצמאית לפי ההיסטוריה.</td></tr>
+    <tr><td><code>understand</code></td><td>Haiku ×2 + Cohere</td><td>שלוש פעולות במקביל (חיסכון בזמן): סיווג site_question / personal_policy / advice / off_topic (גבולות הבוט), ניתוב סמנטי/מובנה, ואחזור סמנטי. אם השאלה נעצרת או הולכת לשכבה המובנית — האחזור פשוט לא בשימוש.</td></tr>
+    <tr><td><code>structured_lookup</code></td><td>Haiku + Sonnet</td><td>שאילתה לפי הסכמה → סינון בפייתון → ניסוח מהפריטים. אין תוצאות → חזרה לחיפוש סמנטי.</td></tr>
+    <tr><td><code>retrieve</code></td><td>לא (Cohere)</td><td>Embedding לשאלה, Pinecone, סינון ציון, rerank.</td></tr>
+    <tr><td><code>evaluate</code></td><td>לא</td><td>יש ראיות? אם לא — ניסוח מחדש פעם אחת, ואז "לא מופיע באתר".</td></tr>
+    <tr><td><code>synthesize</code></td><td>Sonnet</td><td>תשובה רק מהקטעים, 2–4 משפטים בעברית, "המקור:". הטקסט נשלח לממשק תוך כדי כתיבה (streaming); אחרי <code>verify</code> הוא מוחלף בגרסה המאומתת.</td></tr>
+    <tr><td><code>verify</code></td><td>לא</td><td>מוחק כתובות שלא הגיעו מהראיות, מוסיף מקור אם חסר, מוסיף הפניה לפוליסה אישית.</td></tr>
+  </table>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>
+<script>
+  const dark = document.documentElement.dataset.theme === "dark" ||
+    (document.documentElement.dataset.theme !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
+  mermaid.initialize({ startOnLoad: true, theme: dark ? "dark" : "neutral", flowchart: { curve: "basis" } });
+</script>
+</body>
+</html>

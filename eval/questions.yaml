@@ -1,0 +1,126 @@
+# Eval set: real customer questions.
+#   expect: answer   -> should answer; expected_urls = url substrings, any one counts as a hit
+#   expect: refuse   -> should say "not on the site" (no_info)
+#   expect: referral -> personal policy / advice / off-topic: explain + refer, no invented personal facts
+#   follow_up        -> asked right after the previous question, in the same conversation
+
+- id: water-claim
+  q: יש לי נזילה בבית, איך אני מגישה תביעה?
+  expect: answer
+  expected_urls: [claims-appartment-insurance/pipeline-damage, claims-appartment-insurance, water]
+- id: water-claim-time
+  q: ותוך כמה זמן מקבלים תשובה?
+  follow_up: true
+  expect: answer_or_refuse
+  expected_urls: [claims-appartment-insurance, claims_settlement]
+- id: water-claim-policy
+  q: האם הפוליסה שלי מכסה את זה?
+  follow_up: true
+  expect: referral
+- id: serious-illness-time
+  q: תוך כמה זמן מטפלים בתביעה על מחלה קשה?
+  expect: answer
+  expected_urls: [chronic-illness/faq, claims-serious-illness]
+- id: serious-illness-docs
+  q: אילו מסמכים צריך להכין לתביעת מחלות קשות?
+  expect: answer
+  expected_urls: [chronic-illness/faq, claims-serious-illness]
+- id: car-claim
+  q: עשיתי תאונה עם הרכב, איך מגישים תביעה?
+  expect: answer
+  expected_urls: [claims-car-insurance]
+- id: car-third-party
+  q: מישהו פגע לי ברכב והוא מבוטח בהפניקס, איך אני תובע?
+  expect: answer
+  expected_urls: [claims-car-insurance-third-party]
+- id: car-claim-status
+  q: איך בודקים מה הסטטוס של תביעת רכב?
+  expect: answer
+  expected_urls: [car_claim_status, claims-car-insurance]
+- id: towing
+  q: איך מזמינים גרר?
+  expect: answer
+  expected_urls: [car_towing_services, towing, garages]
+- id: windshield
+  q: נסדקה לי השמשה ברכב, למי פונים?
+  expect: answer
+  expected_urls: [car_windowpanes, window-glass-insurance]
+- id: travel-luggage
+  q: המזוודה שלי לא הגיעה בטיסה, מה עושים?
+  expect: answer
+  expected_urls: [claims-travel-abroad, travel]
+- id: travel-emergency
+  q: מה הטלפון של מוקד הסיוע לביטוח נסיעות בחו"ל?
+  expect: answer
+  expected_urls: [travel_emergency]
+- id: travel-extend
+  q: אני בחו"ל ורוצה להאריך את ביטוח הנסיעות, אפשר?
+  expect: answer
+  expected_urls: [travel_policy_extension]
+- id: travel-english
+  q: איך מקבלים אישור ביטוח נסיעות באנגלית?
+  expect: answer
+  expected_urls: [travel_insurance_eng]
+- id: apartment-cancel
+  q: איך מבטלים ביטוח דירה?
+  expect: answer
+  expected_urls: [home_cancel_policy, request-for-cancel-policy]
+- id: apartment-mortgagor
+  q: הבנק ביקש לשעבד את ביטוח הדירה, איך מוסיפים משעבד?
+  expect: answer
+  expected_urls: [home_add_mortgagor, property-insurance]
+- id: contents-coverage
+  q: מה כולל ביטוח תכולה?
+  expect: answer
+  expected_urls: [apartment-contents-insurance, what-is-and-is-not-include]
+- id: boiler
+  q: דוד השמש התפוצץ, זה נחשב תביעה בביטוח דירה?
+  expect: answer
+  expected_urls: [water-heater, pipeline-damage, water-plumbing]
+- id: pets-claim
+  q: איך מגישים תביעה בביטוח חיות מחמד?
+  expect: answer
+  expected_urls: [claims-pets, pets]
+- id: death-claim
+  q: אבא שלי נפטר והיה לו ביטוח חיים בהפניקס, מה עושים?
+  expect: answer
+  expected_urls: [claims-in-case-of-death, claims-life-insurance]
+- id: work-disability
+  q: איך מגישים תביעה לאובדן כושר עבודה?
+  expect: answer
+  expected_urls: [claims-loss-of-earning-capacity]
+- id: contact
+  q: מה מספר הטלפון של שירות הלקוחות?
+  expect: answer
+  expected_urls: [contact-us, call-back]
+- id: phishing
+  q: קיבלתי SMS חשוד בשם הפניקס, מה לעשות?
+  expect: answer
+  expected_urls: [phishing]
+- id: complaint
+  q: איך מגישים תלונה לממונה על פניות הציבור?
+  expect: answer
+  expected_urls: [public-inquiries]
+- id: invest-track
+  q: איך משנים מסלול השקעה בקופת גמל?
+  expect: answer
+  expected_urls: [investment-track-change, gemel]
+# --- should NOT answer from the site ---
+- id: refuse-recipe
+  q: מה המתכון לעוגת שוקולד?
+  expect: referral
+- id: refuse-competitor
+  q: כמה עולה ביטוח רכב בחברת מגדל?
+  expect: refuse_or_referral
+- id: refuse-stock
+  q: מה מחיר המניה של הפניקס היום?
+  expect: refuse
+- id: advice
+  q: כדאי לי לעבור למסלול מנייתי בקרן הפנסיה?
+  expect: referral
+- id: personal-amount
+  q: כמה כסף יש לי בקרן ההשתלמות?
+  expect: referral
+- id: personal-status
+  q: מה הסטטוס של התביעה שהגשתי בשבוע שעבר?
+  expect: referral
