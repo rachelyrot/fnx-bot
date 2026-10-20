@@ -81,6 +81,11 @@ async def index() -> FileResponse:
     return FileResponse(WEB_DIR / "index.html")
 
 
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon() -> FileResponse:
+    return FileResponse(WEB_DIR / "favicon.ico")  # browsers also ask the root path directly
+
+
 app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
 
 if __name__ == "__main__":
