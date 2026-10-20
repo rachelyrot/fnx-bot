@@ -24,8 +24,10 @@ MAX_HISTORY_MESSAGES = 8
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    await asyncio.to_thread(settings.warm_up)  # first customer question should not pay for client setup
+    # Warm up in the background: blocking here keeps the port closed, which stretches Render's wake-up screen.
+    warm = asyncio.create_task(asyncio.to_thread(settings.warm_up))
     yield
+    warm.cancel()
 
 
 app = FastAPI(title="FNX site bot", lifespan=lifespan)
