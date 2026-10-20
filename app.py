@@ -72,7 +72,7 @@ async def chat_stream(req: ChatRequest) -> StreamingResponse:
     return StreamingResponse(events(), media_type="text/event-stream", headers={"Cache-Control": "no-cache"})
 
 
-@app.get("/api/health")
+@app.api_route("/api/health", methods=["GET", "HEAD"])  # HEAD: pingers that cap body size
 async def health() -> dict:
     """Cheap wake-up target (keep-awake ping, page load): no model or vector calls."""
     return {"ok": True}
