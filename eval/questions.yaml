@@ -40,7 +40,7 @@
 - id: towing
   q: איך מזמינים גרר?
   expect: answer
-  expected_urls: [car_towing_services, towing, garages]
+  expected_urls: [car_towing_services, towing, garages, what-to-do-in-case-of-car-accident]
 - id: windshield
   q: נסדקה לי השמשה ברכב, למי פונים?
   expect: answer
