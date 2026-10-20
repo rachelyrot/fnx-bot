@@ -7,6 +7,8 @@ we run it in Python, and Claude writes the final answer from the matching items
 from __future__ import annotations
 
 import json
+import sys
+from collections.abc import AsyncIterator
 from functools import lru_cache
 from typing import Literal, Optional
 
@@ -16,6 +18,7 @@ from pydantic import BaseModel, Field
 import config
 from rag import settings
 from rag.prompts import NO_INFO_ANSWER
+from rag.query_engine import RESTART
 
 MAX_ITEMS_TO_LLM = 25
 
@@ -76,15 +79,33 @@ def run_query(sq: StructuredQuery) -> list[dict]:
     return items
 
 
-async def answer(query: str) -> tuple[str, list[dict], StructuredQuery]:
-    """Returns (answer text, matched items, the generated query)."""
+async def find(query: str) -> list[dict]:
+    """The items matching the question (Claude writes the query, Python runs it)."""
     sq = await settings.llm(fast=True).astructured_predict(StructuredQuery, QUERY_PROMPT, query=query)
-    items = run_query(sq)
-    if not items:
-        return NO_INFO_ANSWER, [], sq
+    return run_query(sq)
+
+
+def _prompt_args(query: str, items: list[dict]) -> dict:
     compact = [{k: v for k, v in i.items() if k not in ("observed_at",) and v not in (None, [], "")}
                for i in items[:MAX_ITEMS_TO_LLM]]
-    resp = await settings.llm().apredict(
-        ANSWER_PROMPT, items=json.dumps(compact, ensure_ascii=False, indent=1), query=query
-    )
-    return resp.strip(), items, sq
+    return {"items": json.dumps(compact, ensure_ascii=False, indent=1), "query": query}
+
+
+async def astream_answer(query: str, items: list[dict]) -> AsyncIterator[str | object]:
+    """The answer from `items`, as text deltas. On a broken stream (see
+    query_engine.astream_synthesize): yield RESTART, then the whole answer in one piece."""
+    try:
+        async for delta in await settings.llm().astream(ANSWER_PROMPT, **_prompt_args(query, items)):
+            yield delta
+    except Exception as e:
+        print(f"answer stream broken ({type(e).__name__}); fetching it in one piece", file=sys.stderr)
+        yield RESTART
+        yield (await settings.llm().apredict(ANSWER_PROMPT, **_prompt_args(query, items))).strip()
+
+
+async def answer(query: str) -> tuple[str, list[dict]]:
+    """Returns (answer text, matched items), not streamed."""
+    items = await find(query)
+    if not items:
+        return NO_INFO_ANSWER, []
+    return (await settings.llm().apredict(ANSWER_PROMPT, **_prompt_args(query, items))).strip(), items

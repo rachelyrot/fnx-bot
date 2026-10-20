@@ -185,6 +185,30 @@ async def _collect(ctx: Context, deltas) -> list[str]:
     return parts
 
 
+NO_INFO_START = prompts.NO_INFO_ANSWER.split(". ")[0]
+
+
+async def _hold_no_info(deltas):
+    """A structured answer that opens with "not on the site" falls back to semantic search,
+    so that opening must never reach the UI: hold deltas while the text could still be it.
+    A held answer comes out after RESTART, which _collect does not stream."""
+    held = []
+    async for delta in deltas:
+        if held is None or delta is qe.RESTART:
+            held = None
+            yield delta
+            continue
+        held.append(delta)
+        text = "".join(held).lstrip()
+        if not (NO_INFO_START.startswith(text) or text.startswith(NO_INFO_START)):
+            for h in held:
+                yield h
+            held = None
+    if held:
+        yield qe.RESTART
+        yield "".join(held)
+
+
 class FnxWorkflow(Workflow):
     @step
     async def validate_input(self, ctx: Context, ev: StartEvent) -> CondenseEvent | StopEvent:
@@ -259,9 +283,13 @@ class FnxWorkflow(Workflow):
                            evidence_urls=urls_in(n.node.get_content() for n in nodes))
 
     @step
-    async def structured_lookup(self, ev: StructuredEvent) -> VerifyEvent | EvaluateEvent:
-        text, items, _ = await structured.answer(ev.query)
-        if not items or prompts.is_no_info(text):
+    async def structured_lookup(self, ctx: Context, ev: StructuredEvent) -> VerifyEvent | EvaluateEvent:
+        items = await structured.find(ev.query)
+        text = ""
+        if items:
+            parts = await _collect(ctx, _hold_no_info(structured.astream_answer(ev.query, items)))
+            text = "".join(parts).strip()
+        if not items or text.startswith(NO_INFO_START):
             # structured layer has nothing: fall back to the semantic evidence fetched in `understand`
             return EvaluateEvent(query=ev.query, nodes=ev.nodes)
         seen, sources = set(), []
