@@ -24,6 +24,7 @@ TokenEvent is written to the event stream so a UI can show the answer as it is g
 from __future__ import annotations
 
 import asyncio
+import json
 import re
 import sys
 
@@ -79,6 +80,7 @@ class VerifyEvent(Event):
     text: str
     sources: list[dict]  # [{url, title, score}] the answer was allowed to cite
     route: str
+    evidence_urls: list[str] = []  # links written in the evidence itself (a provider's site, my.fnx.co.il)
 
 
 class TokenEvent(Event):
@@ -140,6 +142,10 @@ def refers_to_context(question: str) -> bool:
     """Does a first question lean on the page being read ("מה זה כולל?", "כמה עולה הביטוח?")?
     Self-contained questions skip the condense call, so they pay no extra latency."""
     return len(question.split()) <= 4 or bool(CONTEXT_WORDS.search(question))
+
+
+def urls_in(texts) -> list[str]:
+    return sorted({url.rstrip(".,") for t in texts for url in URL_RE.findall(t)})
 
 
 def history_text(history: list[dict], turns: int = 4) -> str:
@@ -249,7 +255,8 @@ class FnxWorkflow(Workflow):
         parts = await _collect(ctx, _drain(draft))
         await draft_task  # re-raises a failed synthesis
         text = "".join(parts).strip()
-        return VerifyEvent(text=text, sources=sources_of(nodes, text), route="semantic")
+        return VerifyEvent(text=text, sources=sources_of(nodes, text), route="semantic",
+                           evidence_urls=urls_in(n.node.get_content() for n in nodes))
 
     @step
     async def structured_lookup(self, ev: StructuredEvent) -> VerifyEvent | EvaluateEvent:
@@ -263,7 +270,8 @@ class FnxWorkflow(Workflow):
             if src["url"] not in seen:
                 seen.add(src["url"])
                 sources.append({"url": src["url"], "title": src["title"], "score": 1.0})
-        return VerifyEvent(text=text, sources=sources, route="structured")
+        return VerifyEvent(text=text, sources=sources, route="structured",
+                           evidence_urls=urls_in(json.dumps(item, ensure_ascii=False) for item in items))
 
     @step
     async def retrieve(self, ctx: Context, ev: RetrieveEvent) -> EvaluateEvent:
@@ -290,11 +298,12 @@ class FnxWorkflow(Workflow):
     async def synthesize(self, ctx: Context, ev: SynthesizeEvent) -> VerifyEvent:
         parts = await _collect(ctx, qe.astream_synthesize(ev.query, ev.nodes))
         text = "".join(parts).strip()
-        return VerifyEvent(text=text, sources=sources_of(ev.nodes, text), route="semantic")
+        return VerifyEvent(text=text, sources=sources_of(ev.nodes, text), route="semantic",
+                           evidence_urls=urls_in(n.node.get_content() for n in ev.nodes))
 
     @step
     async def verify(self, ctx: Context, ev: VerifyEvent) -> StopEvent:
-        """Every cited URL must come from the evidence; no citation -> cite the top source."""
+        """Every URL must come from the evidence; no source page cited -> cite the top source."""
         personal = await ctx.store.get("category") == "personal_policy"
         if prompts.is_no_info(ev.text):
             if personal:
@@ -302,10 +311,11 @@ class FnxWorkflow(Workflow):
             return result(prompts.NO_INFO_ANSWER, route="no_info")
 
         allowed = {s["url"] for s in ev.sources}
+        known = allowed | set(ev.evidence_urls)
         text = ev.text
         for url in set(URL_RE.findall(text)):
-            if url.rstrip(".,") not in allowed:
-                text = text.replace(url, "").rstrip()  # cited something it was not given
+            if url.rstrip(".,") not in known:
+                text = text.replace(url, "").rstrip()  # a link the evidence does not contain
         if not any(u.rstrip(".,") in allowed for u in URL_RE.findall(text)):
             text = f"{text}\n\nהמקור: {ev.sources[0]['url']}"
         if personal:
