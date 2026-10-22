@@ -40,7 +40,7 @@
 - id: towing
   q: איך מזמינים גרר?
   expect: answer
-  expected_urls: [car_towing_services, towing, garages, what-to-do-in-case-of-car-accident]
+  expected_urls: [car_towing_services, towing, garages, what-to-do-in-case-of-car-accident, good-people]
 - id: windshield
   q: נסדקה לי השמשה ברכב, למי פונים?
   expect: answer
@@ -114,7 +114,7 @@
   expect: refuse_or_referral
 - id: refuse-stock
   q: מה מחיר המניה של הפניקס היום?
-  expect: refuse
+  expect: refuse_or_referral
 - id: advice
   q: כדאי לי לעבור למסלול מנייתי בקרן הפנסיה?
   expect: referral

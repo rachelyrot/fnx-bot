@@ -51,7 +51,7 @@ def llm(fast: bool = False):
         model=config.LLM_FAST if fast else config.LLM_MAIN,
         api_key=require_env("ANTHROPIC_API_KEY"),
         temperature=0.0,
-        max_tokens=1024,
+        max_tokens=1024 if fast else 2048,  # structured answers list every step and document
         thinking_dict={"type": "disabled"} if fast else {"type": "between_tools"},
     )
 

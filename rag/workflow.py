@@ -38,6 +38,7 @@ from rag.router import choose_route
 
 MAX_QUESTION_CHARS = 1000
 MAX_RETRIEVE_ATTEMPTS = 2
+MIN_EVIDENCE_NODES = 2  # fewer chunks survive rerank -> the question is phrased unlike the site: rewrite too
 URL_RE = re.compile(r"https?://[^\s)\]>\"']+")
 
 
@@ -60,6 +61,7 @@ class StructuredEvent(Event):
 
 class RetrieveEvent(Event):
     query: str
+    nodes: list[NodeWithScore] = []  # thin evidence from the previous attempt, merged with the new
 
 
 class EvaluateEvent(Event):
@@ -69,6 +71,7 @@ class EvaluateEvent(Event):
 
 class RewriteEvent(Event):
     query: str
+    nodes: list[NodeWithScore] = []
 
 
 class SynthesizeEvent(Event):
@@ -257,7 +260,8 @@ class FnxWorkflow(Workflow):
             asyncio.to_thread(lambda: qe.postprocess(ev.query, qe.retrieve(ev.query))),
         )
         draft = asyncio.Queue()
-        draft_task = asyncio.create_task(_draft(ev.query, nodes, draft)) if route == "semantic" and nodes else None
+        draft_task = (asyncio.create_task(_draft(ev.query, nodes, draft))
+                      if route == "semantic" and len(nodes) >= MIN_EVIDENCE_NODES else None)
         try:
             label = await label_task
         except BaseException:
@@ -274,7 +278,7 @@ class FnxWorkflow(Workflow):
         # site_question and personal_policy both search the site (personal gets a referral appended)
         if route == "structured":
             return StructuredEvent(query=ev.query, nodes=nodes)
-        if not draft_task:  # no evidence: evaluate decides between rewrite and "not on the site"
+        if not draft_task:  # thin evidence: evaluate decides between rewrite, answer and "not on the site"
             return EvaluateEvent(query=ev.query, nodes=nodes)
         parts = await _collect(ctx, _drain(draft))
         await draft_task  # re-raises a failed synthesis
@@ -305,14 +309,19 @@ class FnxWorkflow(Workflow):
     async def retrieve(self, ctx: Context, ev: RetrieveEvent) -> EvaluateEvent:
         await ctx.store.set("attempts", await ctx.store.get("attempts") + 1)
         nodes = await asyncio.to_thread(lambda: qe.postprocess(ev.query, qe.retrieve(ev.query)))
+        if ev.nodes:  # keep what the first attempt found, best rerank score first
+            fresh = [n for n in nodes if n.node.node_id not in {m.node.node_id for m in ev.nodes}]
+            nodes = qe.diversify(sorted(ev.nodes + fresh, key=lambda n: n.score or 0, reverse=True))
         return EvaluateEvent(query=ev.query, nodes=nodes)
 
     @step
     async def evaluate(self, ctx: Context, ev: EvaluateEvent) -> SynthesizeEvent | RewriteEvent | StopEvent:
-        if ev.nodes:
+        if len(ev.nodes) >= MIN_EVIDENCE_NODES:
             return SynthesizeEvent(query=ev.query, nodes=ev.nodes)
         if await ctx.store.get("attempts") < MAX_RETRIEVE_ATTEMPTS:
-            return RewriteEvent(query=ev.query)
+            return RewriteEvent(query=ev.query, nodes=ev.nodes)
+        if ev.nodes:
+            return SynthesizeEvent(query=ev.query, nodes=ev.nodes)
         if await ctx.store.get("category") == "personal_policy":
             return result(prompts.PERSONAL_POLICY_ANSWER, route="personal_policy", query=ev.query)
         return result(prompts.NO_INFO_ANSWER, route="no_info", query=ev.query)
@@ -320,7 +329,7 @@ class FnxWorkflow(Workflow):
     @step
     async def rewrite(self, ev: RewriteEvent) -> RetrieveEvent:
         resp = await settings.llm(fast=True).acomplete(REWRITE_PROMPT.format(query=ev.query))
-        return RetrieveEvent(query=resp.text.strip() or ev.query)
+        return RetrieveEvent(query=resp.text.strip() or ev.query, nodes=ev.nodes)
 
     @step
     async def synthesize(self, ctx: Context, ev: SynthesizeEvent) -> VerifyEvent:
